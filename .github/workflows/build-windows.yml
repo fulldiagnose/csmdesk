@@ -54,7 +54,7 @@ jobs:
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
         run: |
-          $VCPKG_ROOT/vcpkg install --triplet x64-windows-static --x-install-root="$env:VCPKG_ROOT/installed"
+          vcpkg install --triplet x64-windows-static --x-install-root="$VCPKG_ROOT/installed"
         shell: bash
 
       - name: Install Flutter
