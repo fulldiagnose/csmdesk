@@ -1,0 +1,114 @@
+name: Build CSMDESK Windows x64
+
+# Self-contained Windows x64 portable build for the CSMDESK fork.
+# Deliberately does NOT use the upstream reusable-workflow chain: a single
+# unavailable runner label anywhere in that chain fails the whole run at
+# startup on free accounts (startup_failure, zero jobs), which is what kept
+# killing the tag builds. This file references only free-tier runners.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  FLUTTER_VERSION: "3.24.5"
+  VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
+  BRIDGE_FLUTTER_VERSION: "3.22.3"
+  CARGO_EXPAND_VERSION: "1.0.95"
+  FRB_VERSION: "1.80.1"
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: "1.75"
+          targets: x86_64-pc-windows-msvc
+          components: "rustfmt"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          prefix-key: windows-csmdesk
+
+      - name: Setup vcpkg with GitHub Actions binary cache
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
+        with:
+          vcpkgDirectory: C:\vcpkg
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        env:
+          VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
+        run: |
+          $VCPKG_ROOT/vcpkg install --triplet x64-windows-static --x-install-root="$env:VCPKG_ROOT/installed"
+        shell: bash
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@2783a3f08e1baf891508463f8c6653c258246225 # v2.12.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.BRIDGE_FLUTTER_VERSION }}
+          architecture: x64
+
+      - name: Install flutter_rust_bridge_codegen
+        run: |
+          cargo install flutter_rust_bridge_codegen --version ${{ env.FRB_VERSION }} --locked
+          flutter config --no-analytics
+
+      - name: Generate bridge
+        run: |
+          flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --c-output ./flutter/macos/Runner/bridge_generated.h
+
+      - name: Build Rust core (librustdesk.dll)
+        run: cargo build --locked --features flutter,hwcodec --lib --release
+
+      - name: Build Flutter app
+        run: |
+          cd flutter
+          flutter pub get
+          flutter build windows --release
+          cd ..
+
+      - name: Copy virtual display dylib
+        run: |
+          copy /Y "target\release\deps\dylib_virtual_display.dll" "flutter\build\windows\x64\runner\Release\" || echo "dylib not found, skipping"
+
+      - name: Build portable single exe
+        shell: bash
+        run: |
+          pip3 install -r libs/portable/requirements.txt
+          cd libs/portable
+          python generate.py -f ../../flutter/build/windows/x64/runner/Release -o . -e ../../flutter/build/windows/x64/runner/Release/rustdesk.exe
+          cd ../..
+          mkdir -p SignOutput
+          mv target/release/rustdesk-portable-packer.exe "SignOutput/CSMDESK-1.5.1-x64.exe"
+
+      - name: Verify artifact
+        run: |
+          dir SignOutput
+          $f = "SignOutput/CSMDESK-1.5.1-x64.exe"
+          if (-not (Test-Path $f)) { throw "portable exe missing" }
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        with:
+          prerelease: true
+          tag_name: ${{ github.ref_name }}
+          files: |
+            SignOutput/CSMDESK-*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
