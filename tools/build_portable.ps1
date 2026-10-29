@@ -79,8 +79,13 @@ try {
         Write-Warning "WindowInjection.dll not found - privacy mode 'Mode 1' (win_exclude_from_capture) will be used instead; build it from the RustDeskTempTopMostWindow project or download from a RustDesk CI run."
     }
 
+    # Same rename as CI: the payload exe name decides the portable extraction
+    # dir, the process image name, and whether the installer must rename the
+    # copied exe to <APP_NAME>.exe (that rename is what failed with exit 9059).
+    Move-Item -Force "$bundle\rustdesk.exe" "$bundle\CSMDESK.exe"
+
     Push-Location libs\portable
-    python generate.py -f "../../$bundle" -o . -e "../../$bundle/rustdesk.exe"
+    python generate.py -f "../../$bundle" -o . -e "../../$bundle/CSMDESK.exe"
     if ($LASTEXITCODE -ne 0) { throw "portable packer failed" }
     Pop-Location
 

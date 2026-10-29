@@ -117,6 +117,44 @@ jobs:
           python3 ./build.py --portable --flutter --skip-portable-pack --hwcodec --vram
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
 
+      - name: Rename payload executable to CSMDESK.exe
+        shell: bash
+        run: |
+          # The payload exe name decides three things at runtime:
+          #   * the portable extraction dir (%LOCALAPPDATA%\<stem>)
+          #   * the process image name (two apps both called rustdesk.exe
+          #     collide in single-instance / tray detection)
+          #   * whether the installer has to rename the copied exe to
+          #     <APP_NAME>.exe - that rename is what failed with exit 9059
+          #     and left C:\Program Files\CSMDESK without CSMDESK.exe.
+          # Naming it CSMDESK.exe up front avoids all three.
+          mv ./rustdesk/rustdesk.exe ./rustdesk/CSMDESK.exe
+          ls -la ./rustdesk/*.exe
+
+      - name: Add remote printer adapter
+        shell: pwsh
+        # Upstream downloads these in CI; without the adapter the app logs
+        # "printer service init failed". Non-fatal: keep going if the CDN is down.
+        continue-on-error: true
+        run: |
+          try {
+            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip -OutFile printer_driver_adapter.zip
+            Expand-Archive printer_driver_adapter.zip -DestinationPath .
+            Move-Item -Force .\printer_driver_adapter.dll .\rustdesk\printer_driver_adapter.dll
+            Write-Host "printer adapter added"
+          } catch {
+            Write-Warning "printer adapter download failed: $_"
+          }
+          try {
+            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip -OutFile rustdesk_printer_driver_v4-1.4.zip
+            Expand-Archive rustdesk_printer_driver_v4-1.4.zip -DestinationPath .
+            New-Item -ItemType Directory -Force -Path .\rustdesk\drivers | Out-Null
+            Move-Item -Force .\rustdesk_printer_driver_v4-1.4 .\rustdesk\drivers\RustDeskPrinterDriver
+            Write-Host "printer driver added"
+          } catch {
+            Write-Warning "printer driver download failed: $_"
+          }
+
       - name: Add virtual display driver package (privacy mode Mode 2)
         shell: pwsh
         run: |
@@ -145,12 +183,22 @@ jobs:
         run: |
           pip3 install -r libs/portable/requirements.txt
           cd libs/portable
-          python3 ./generate.py -f ../../rustdesk -o . -e ../../rustdesk/rustdesk.exe
+          python3 ./generate.py -f ../../rustdesk -o . -e ../../rustdesk/CSMDESK.exe
           cd ../..
           mkdir -p SignOutput
           mv ./target/release/rustdesk-portable-packer.exe \
              "./SignOutput/CSMDESK-${CSMDESK_VERSION}-x64.exe"
           ls -la SignOutput
+
+      - name: Verify branding of the produced exe
+        shell: pwsh
+        run: |
+          $f = Get-ChildItem .\SignOutput\CSMDESK-*.exe | Select-Object -First 1
+          if (-not $f) { throw "no exe produced" }
+          $v = $f.VersionInfo
+          "{0}`n  ProductName : {1}`n  Description : {2}`n  Version     : {3}" -f $f.Name, $v.ProductName, $v.FileDescription, $v.FileVersion | Write-Host
+          if ($v.ProductName -ne 'CSMDESK') { throw "ProductName is '$($v.ProductName)', expected CSMDESK" }
+          Write-Host "branding OK"
 
       - name: Upload artifact (always, even without a tag)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
