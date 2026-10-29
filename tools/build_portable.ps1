@@ -59,6 +59,26 @@ try {
 
     Copy-Item "target\release\deps\dylib_virtual_display.dll" "$bundle\" -Force -ErrorAction SilentlyContinue
 
+    # Privacy-mode (virtual display) needs the Amyuni usbmmidd_v2 driver package,
+    # same source as CI. Without it, privacy mode falls back to Mode 1 only.
+    if (-not (Test-Path "$bundle\usbmmidd_v2")) {
+        Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
+        Expand-Archive usbmmidd_v2.zip -DestinationPath .
+        Remove-Item -Path usbmmidd_v2\Win32 -Recurse -ErrorAction SilentlyContinue
+        Remove-Item -Path "usbmmidd_v2\deviceinstaller64.exe", "usbmmidd_v2\deviceinstaller.exe", "usbmmidd_v2\usbmmidd.bat" -ErrorAction SilentlyContinue
+        Move-Item -Force .\usbmmidd_v2 "$bundle\usbmmidd_v2"
+    }
+
+    # Privacy mode Mode 1 (topmost overlay) needs WindowInjection.dll. CI builds it
+    # from the RustDeskTempTopMostWindow project; without it privacy mode uses the
+    # magnifier fallback. Optional: place the DLL next to this script to bundle.
+    if (Test-Path "libs\portable\WindowInjection.dll") {
+        Copy-Item "libs\portable\WindowInjection.dll" "$bundle\" -Force
+        Write-Host "WindowInjection.dll included (privacy mode Mode 1 enabled)"
+    } else {
+        Write-Warning "WindowInjection.dll not found - privacy mode 'Mode 1' (win_exclude_from_capture) will be used instead; build it from the RustDeskTempTopMostWindow project or download from a RustDesk CI run."
+    }
+
     Push-Location libs\portable
     python generate.py -f "../../$bundle" -o . -e "../../$bundle/rustdesk.exe"
     if ($LASTEXITCODE -ne 0) { throw "portable packer failed" }
