@@ -138,10 +138,13 @@ jobs:
               target: windows-2022,
               platform: x64,
             }
-          - {
-              target: windows-11-arm,
-              platform: ARM64,
-            }
+          # CSMDESK fork: windows-11-arm runner is not available on free-tier
+          # accounts; one unavailable label fails the whole workflow at startup.
+          # ARM64 privacy-mode DLL can be built locally if ever needed.
+          # - {
+          #     target: windows-11-arm,
+          #     platform: ARM64,
+          #   }
     with:
       upload-artifact: ${{ inputs.upload-artifact }}
       target: ${{ matrix.job.target }}
