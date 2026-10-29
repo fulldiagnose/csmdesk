@@ -2647,6 +2647,10 @@ class _AboutState extends State<_About> {
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(
+                            'CSMDESK is based on RustDesk (AGPL-3.0). Source: github.com/fulldiagnose/csmdesk',
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                          Text(
                             translate('Slogan_tip'),
                             style: TextStyle(
                                 fontWeight: FontWeight.w800,

@@ -1,0 +1,25 @@
+CSMDESK
+Copyright (C) 2026 CSMDESK contributors
+
+This product is a fork of RustDesk.
+
+RustDesk
+Copyright (C) Purslane Tech Pte. Ltd.
+Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+Upstream source: https://github.com/rustdesk/rustdesk
+Upstream website: https://rustdesk.com
+
+CSMDESK source: https://github.com/fulldiagnose/csmdesk
+
+Modifications made by the CSMDESK project:
+  - product name, icons and Windows executable metadata
+  - default product name applied at startup (src/common.rs)
+  - own custom-client signing key (src/common.rs)
+  - branded custom-client staging directory (src/platform/windows.rs)
+  - 2FA issuer name (src/auth_2fa.rs)
+  - window title and About-page attribution
+
+The original copyright notices, the AGPL-3.0 licence text (LICENCE) and the
+"Powered by RustDesk" credit are retained. CSMDESK is distributed under the
+same licence, AGPL-3.0. Complete corresponding source is available at the
+repository above.

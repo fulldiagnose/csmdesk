@@ -1,0 +1,14 @@
+{
+  "app-name": "CSMDESK",
+  "override-settings": {
+    "custom-rendezvous-server": "rd.csmdesk.example",
+    "key": "REPLACE_WITH_HBBS_PUBLIC_KEY"
+  },
+  "default-settings": {
+    "id-whitelist": "REPLACE_WITH_IT_CLIENT_ID_1,REPLACE_WITH_IT_CLIENT_ID_2",
+    "enable-privacy-mode": "Y",
+    "allow-auto-update": "N",
+    "enable-check-update": "N",
+    "allow-auto-disconnect": "N"
+  }
+}

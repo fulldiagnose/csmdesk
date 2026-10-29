@@ -60,3 +60,19 @@ flutter/web/
 /third_party/libdrmtap/
 # Local git worktrees
 .worktrees/
+
+# CSMDESK brand assets: the generic *png/*svg rules above would hide them
+!res/icon.png
+!res/logo.svg
+!res/logo-header.svg
+!flutter/assets/icon.png
+!flutter/assets/icon.ico
+!flutter/assets/logo.png
+!flutter/assets/logo_dark.png
+!flutter/assets/logo_light.png
+
+# CSMDESK deployment artefacts (signed config may contain server details)
+custom.txt
+deploy/*.local.json
+dist/
+secrets/

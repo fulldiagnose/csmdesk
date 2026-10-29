@@ -120,7 +120,28 @@ impl Drop for SimpleCallOnReturn {
     }
 }
 
+/// Product name of this fork.
+///
+/// CSMDESK is based on RustDesk (AGPL-3.0). Upstream copyright notices and the
+/// "Powered by RustDesk" credit are intentionally kept in the UI; only the product
+/// name, icons and default server wiring are rebranded here.
+pub const BRAND_NAME: &str = "CSMDESK";
+
+/// Apply the fork's product name at startup.
+///
+/// `config::APP_NAME` drives window titles, data/log directories, the deep-link
+/// prefix and the UI string substitution in `lang::translate`. Upstream keeps it
+/// hard-coded to `"RustDesk"`, so this fork overrides it before anything reads it.
+/// A signed `custom.txt` loaded later can still override the name.
+fn apply_branding() {
+    let mut app_name = config::APP_NAME.write().unwrap();
+    if app_name.as_str() == "RustDesk" {
+        *app_name = BRAND_NAME.to_owned();
+    }
+}
+
 pub fn global_init() -> bool {
+    apply_branding();
     #[cfg(all(target_os = "linux", feature = "drm"))]
     crate::platform::linux::dispatch_wayland_display_probe();
     #[cfg(target_os = "linux")]
@@ -2493,6 +2514,10 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
 }
 
 pub fn load_custom_client() {
+    // Service/helper processes may start without going through `global_init`
+    // (macOS `service` binary), so brand here as well; it is a no-op after the
+    // first call and is overridden by a signed custom.txt.
+    apply_branding();
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
@@ -2595,7 +2620,10 @@ pub fn read_custom_client(config: &str) {
         log::error!("Failed to decode custom client config");
         return;
     };
-    const KEY: &str = "5Qbwsde3unUcJBtrx9ZkvUmwFNoExHzpryHuPUdqlWM=";
+    // CSMDESK signing key. Only the CSMDESK maintainers hold the matching private
+    // key (kept outside the repo), so third parties cannot ship a `custom.txt` that
+    // rebrands or repoints this client.
+    const KEY: &str = "qwDxiIExys5bhxek/lcwCpDFbVqd63xjbImZdWtpBv4=";
     let Some(pk) = get_rs_pk(KEY) else {
         log::error!("Failed to parse public key of custom client");
         return;
