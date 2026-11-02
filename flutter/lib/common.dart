@@ -40,6 +40,8 @@ import 'desktop/pages/view_camera_page.dart' as desktop_view_camera;
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'models/model.dart';
 import 'models/platform_model.dart';
+import 'models/console_auth.dart';
+import 'widgets/console_login.dart';
 
 import 'package:flutter_hbb/native/win32.dart'
     if (dart.library.html) 'package:flutter_hbb/web/win32.dart';
@@ -2592,6 +2594,16 @@ connect(BuildContext context, String id,
     String? connToken,
     bool? isSharedPassword}) async {
   if (id == '') return;
+  // CSMDESK console login gate: koneksi butuh sesi teknisi yang sah.
+  try {
+    final (sessionOk, _, _) = await consoleSessionState();
+    if (!sessionOk) {
+      final passed = await requireConsoleLogin(context);
+      if (!passed) return;
+    }
+  } catch (_) {
+    // gate jangan bikin client mati kalau ada error tak terduga
+  }
   if (!isDesktop || desktopType == DesktopType.main) {
     try {
       if (Get.isRegistered<IDTextEditingController>()) {
